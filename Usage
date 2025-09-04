@@ -1,0 +1,14 @@
+Usage
+
+Place the script (e.g. eye_mouse.py) in a folder.
+
+Run:
+
+python eye_mouse.py
+
+
+Controls:
+
+Space — toggle tracking on/off
+
+q — quit
