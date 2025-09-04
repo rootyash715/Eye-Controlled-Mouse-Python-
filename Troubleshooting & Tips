@@ -1,0 +1,9 @@
+Troubleshooting & Tips
+
+Improve lighting and face the camera for more reliable tracking.
+
+If cursor jumps around, reduce SMOOTHING or increase recent_centers buffer size.
+
+If clicks are too sensitive, increase the cooldowns or tune EAR thresholds.
+
+If MediaPipe does not return refined iris landmarks, ensure refine_landmarks=True in the FaceMesh constructor and use a clear frontal face.
