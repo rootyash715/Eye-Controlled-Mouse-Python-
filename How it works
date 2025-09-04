@@ -1,0 +1,9 @@
+How it works (short)
+
+MediaPipe Face Mesh provides facial landmarks including iris points.
+
+Compute iris center, normalize to the webcam frame and map to screen coordinates.
+
+Smooth movement with exponential smoothing and issue pyautogui.moveTo.
+
+Estimate eye openness using a simple vertical/horizontal landmark distance ratio (EAR-like metric). When one eye is closed and the other open (a wink), trigger left/right click respecting cooldowns.
