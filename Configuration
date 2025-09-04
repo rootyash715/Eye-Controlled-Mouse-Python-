@@ -1,0 +1,15 @@
+
+
+At the top of the file you can tweak constants:
+
+SMOOTHING — 0..1 smoothing factor (lower = smoother)
+
+MOVE_GAIN_X, MOVE_GAIN_Y — horizontal and vertical sensitivity multipliers
+
+LEFT_CLICK_COOLDOWN, RIGHT_CLICK_COOLDOWN — minimum seconds between click events
+
+EAR_BLINK_THR, EAR_OPEN_THR — eye aspect ratio thresholds for blink/wink detection
+
+SHOW_OVERLAY — show debug overlay (set to False for production)
+
+USE_LEFT_EYE_FOR_CURSOR — choose left eye only or average of both eyes for cursor position
