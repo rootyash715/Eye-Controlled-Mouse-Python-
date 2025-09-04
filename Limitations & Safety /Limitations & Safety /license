@@ -1,0 +1,13 @@
+Limitations & Safety
+
+Not intended for critical control — calibrate and test thoroughly before any real-world use.
+
+May not perform well with occlusions (glasses reflections, extreme head rotations).
+
+pyautogui controls the system cursor — use with caution while testing.
+
+License
+
+Choose a license (e.g., MIT). Example:
+
+MIT License
