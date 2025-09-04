@@ -1,0 +1,173 @@
+import time
+from collections import deque
+
+import cv2
+import mediapipe as mp
+import numpy as np
+import pyautogui
+
+SMOOTHING = 0.2
+MOVE_GAIN_X = 1.0
+MOVE_GAIN_Y = 1.2
+LEFT_CLICK_COOLDOWN = 0.6
+RIGHT_CLICK_COOLDOWN = 0.8
+EAR_BLINK_THR = 0.20
+EAR_OPEN_THR = 0.25
+SHOW_OVERLAY = True
+USE_LEFT_EYE_FOR_CURSOR = True
+LEFT_IRIS_IDX = [474, 475, 476, 477]
+RIGHT_IRIS_IDX = [469, 470, 471, 472]
+L_EYE_H = (33, 133)
+L_EYE_V = (159, 145)
+R_EYE_H = (263, 362)
+R_EYE_V = (386, 374)
+
+
+def ear_ratio(landmarks, h_idx, v_idx, w, h):
+    (hx1, hx2) = h_idx
+    (vy1, vy2) = v_idx
+    p1 = np.array([landmarks[hx1].x * w, landmarks[hx1].y * h])
+    p2 = np.array([landmarks[hx2].x * w, landmarks[hx2].y * h])
+    p3 = np.array([landmarks[vy1].x * w, landmarks[vy1].y * h])
+    p4 = np.array([landmarks[vy2].x * w, landmarks[vy2].y * h])
+    horiz = np.linalg.norm(p1 - p2) + 1e-6
+    vert = np.linalg.norm(p3 - p4)
+    return float(vert) / float(horiz)
+
+
+def iris_center(landmarks, indices, w, h):
+    pts = np.array([[landmarks[i].x * w, landmarks[i].y * h] for i in indices])
+    c = pts.mean(axis=0)
+    return float(c[0]), float(c[1])
+
+
+def exp_smooth(prev, new, alpha):
+    alpha = max(0.0, min(1.0, float(alpha)))
+    return (1.0 - alpha) * prev + alpha * new
+
+
+def main():
+    cam = cv2.VideoCapture(0)
+    if not cam.isOpened():
+        raise RuntimeError("Could not open webcam (index 0)")
+
+    screen_w, screen_h = pyautogui.size()
+    face_mesh_module = mp.solutions.face_mesh
+    face_mesh = face_mesh_module.FaceMesh(
+        max_num_faces=1,
+        refine_landmarks=True,
+        min_detection_confidence=0.5,
+        min_tracking_confidence=0.5,
+    )
+    drawing_utils = mp.solutions.drawing_utils
+    draw_spec = drawing_utils.DrawingSpec(thickness=1, circle_radius=1)
+
+    last_mouse = np.array(pyautogui.position(), dtype=float)
+    left_closed = False
+    right_closed = False
+    last_left_click = 0.0
+    last_right_click = 0.0
+    enabled = True
+    recent_centers = deque(maxlen=5)
+
+    try:
+        while True:
+            ok, frame = cam.read()
+            if not ok:
+                break
+
+            frame = cv2.flip(frame, 1)
+            h, w = frame.shape[:2]
+            rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+            res = face_mesh.process(rgb)
+            if res and getattr(res, 'multi_face_landmarks', None):
+                face_landmarks = res.multi_face_landmarks[0].landmark
+
+                ear_left = ear_ratio(face_landmarks, L_EYE_H, L_EYE_V, w, h)
+                ear_right = ear_ratio(face_landmarks, R_EYE_H, R_EYE_V, w, h)
+
+                if ear_left < EAR_BLINK_THR:
+                    left_closed = True
+                elif ear_left > EAR_OPEN_THR:
+                    left_closed = False
+
+                if ear_right < EAR_BLINK_THR:
+                    right_closed = True
+                elif ear_right > EAR_OPEN_THR:
+                    right_closed = False
+
+                lx, ly = iris_center(face_landmarks, LEFT_IRIS_IDX, w, h)
+                rx, ry = iris_center(face_landmarks, RIGHT_IRIS_IDX, w, h)
+
+                if USE_LEFT_EYE_FOR_CURSOR:
+                    cx, cy = lx, ly
+                else:
+                    cx, cy = (lx + rx) / 2.0, (ly + ry) / 2.0
+
+                recent_centers.append((float(cx), float(cy)))
+                centers_arr = np.array(recent_centers, dtype=float)
+                mean_center = centers_arr.mean(axis=0)
+                nx = mean_center[0] / float(w)
+                ny = mean_center[1] / float(h)
+
+                target_x = float(np.clip(nx * screen_w * MOVE_GAIN_X, 0, screen_w - 1))
+                target_y = float(np.clip(ny * screen_h * MOVE_GAIN_Y, 0, screen_h - 1))
+
+                last_mouse[0] = exp_smooth(last_mouse[0], target_x, SMOOTHING)
+                last_mouse[1] = exp_smooth(last_mouse[1], target_y, SMOOTHING)
+
+                if enabled:
+                    try:
+                        pyautogui.moveTo(last_mouse[0], last_mouse[1])
+                    except Exception:
+                        pass
+
+                now = time.time()
+                if enabled and left_closed and not right_closed:
+                    if now - last_left_click > LEFT_CLICK_COOLDOWN:
+                        try:
+                            pyautogui.click()
+                        except Exception:
+                            pass
+                        last_left_click = now
+
+                if enabled and right_closed and not left_closed:
+                    if now - last_right_click > RIGHT_CLICK_COOLDOWN:
+                        try:
+                            pyautogui.click(button='right')
+                        except Exception:
+                            pass
+                        last_right_click = now
+
+                if SHOW_OVERLAY:
+                    drawing_utils.draw_landmarks(
+                        frame,
+                        res.multi_face_landmarks[0],
+                        face_mesh_module.FACEMESH_TESSELATION,
+                        landmark_drawing_spec=draw_spec,
+                        connection_drawing_spec=draw_spec,
+                    )
+                    cv2.circle(frame, (int(lx), int(ly)), 3, (0, 255, 0), -1)
+                    cv2.circle(frame, (int(rx), int(ry)), 3, (0, 255, 0), -1)
+                    txt = f"EAR L:{ear_left:.2f} ({'C' if left_closed else 'O'})  R:{ear_right:.2f} ({'C' if right_closed else 'O'})  ON:{enabled}"
+                    cv2.putText(frame, txt, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            else:
+                last_mouse = np.array(pyautogui.position(), dtype=float)
+
+            if SHOW_OVERLAY:
+                cv2.imshow('Eye Mouse - q to quit | SPACE toggle', frame)
+
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
+                break
+            if key == ord(' '):
+                enabled = not enabled
+    finally:
+        cam.release()
+        face_mesh.close()
+        cv2.destroyAllWindows()
+
+
+if __name__ == '__main__':
+    main()
