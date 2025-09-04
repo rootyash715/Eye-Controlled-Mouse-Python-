@@ -1,0 +1,95 @@
+Acknowledgements
+
+Inspired by an educational demo (YouTube) demonstrating eye-driven cursor control using MediaPipe.
+
+
+# Medium article draft (ready to paste)
+```markdown
+# Build an Eye-Controlled Mouse with Python (MediaPipe + OpenCV)
+
+What if you could move your cursor with a glance and click with a wink? In this post I’ll show you a compact Python project that does exactly that using a regular webcam. We'll walk through the ideas, the key code pieces, and how to run it on your machine.
+
+## Why this is interesting
+Eye-controlled interfaces are more accessible and open the door to novel interactions — from assistive tech to hands-free control. With modern computer-vision tools like MediaPipe, building a proof-of-concept is easier than you might expect.
+
+## What you’ll need
+- Python 3.8+
+- Webcam
+- Libraries: `opencv-python`, `mediapipe`, `numpy`, `pyautogui`
+
+## The idea, in 60 seconds
+- Use MediaPipe Face Mesh to get refined face landmarks (including iris points).
+- Compute the iris center and map it to screen coordinates.
+- Smooth the motion and move the system cursor.
+- Detect winks/blinks with a simple eye-aspect-ratio heuristic and perform left/right clicks with a cooldown.
+
+## Key implementation details
+1. **Iris center**  
+   Average the iris landmark coordinates provided by MediaPipe for a stable center estimate. Normalize by the webcam frame size and map to screen pixels.
+
+2. **Smoothing**  
+   Use exponential smoothing to reduce jitter. Smoothing factor is clamped to `[0, 1]`.
+
+3. **Click detection (blink/wink)**  
+   Compute a ratio of vertical to horizontal distances around the eye (EAR-like). If one eye is below a closed threshold and the other is open, treat that as a wink. Use cooldown timers to avoid repeated clicks.
+
+4. **Safety & reliability**  
+   Provide an overlay during development showing landmarks and EAR values. Allow toggling the system control (Space) and terminating cleanly (q).
+
+## Full code
+> Paste the full script from the repository (or link to the GitHub repo).
+
+## Run it
+1. Install dependencies:
+```bash
+pip install opencv-python mediapipe pyautogui numpy
+
+
+Run:
+
+python eye_mouse.py
+
+
+Try moving your eyes, wink to click. Press Space to toggle; press q to quit.
+
+Tips for better performance
+
+Face the camera straight-on and improve lighting.
+
+Reduce background clutter that confuses the detector.
+
+Tune SMOOTHING, MOVE_GAIN_* and EAR thresholds for your camera and face.
+
+Limitations & ethics
+
+This is a demo, not a production-ready accessibility solution. It should not be relied on for critical interactions.
+
+Be mindful that camera-based systems may capture sensitive visual data — handle recordings and logs responsibly and respect privacy.
+
+What’s next
+
+Add a calibration step to map neutral gaze to screen center.
+
+Use head-pose + gaze fusion for better accuracy.
+
+Explore dwell-to-click or gesture sets for richer interactions.
+
+Tags
+
+Computer Vision, Python, OpenCV, MediaPipe, Accessibility, Tutorial
+
+Closing
+
+If you try this, post a short GIF and your tuned parameters — I’d love to see your improvements and use-cases!
+
+
+---
+
+If you want, I can also:
+- produce a short `README` badge line and suggested `.gitignore`,
+- generate a GIF-ready demo command and a short caption for Twitter,
+- or format the Medium article into a publish-ready HTML export.
+
+Which one do you want next?
+
+You said:
